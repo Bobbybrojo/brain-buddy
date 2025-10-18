@@ -2,7 +2,7 @@
 import Image from "next/image";
 import { motion } from "motion/react";
 
-export default function Home() {
+export default function Quiz() {
   return (
     <div className="font-sans flex flex-col p-8 items-center w-dvw h-dvh">
       <main className="relative">
@@ -14,7 +14,7 @@ export default function Home() {
           alt=""
         />
         <div className="absolute inset-0 flex flex-col gap-4 items-center justify-center text-white">
-          <h3 className="text-7xl text-wrap text-center">Brain Buddy</h3>
+          <h3 className="text-7xl text-wrap text-center">Quiz</h3>
           <motion.a
             className="bg-neutral-400/30 backdrop-blur-xl pt-4 pb-4 ps-6 pe-6 rounded-2xl"
             href="/auth/login?returnTo=/quiz"

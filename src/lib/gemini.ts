@@ -1,8 +1,7 @@
 "use server";
 
-import { GoogleGenAI, Chat, FunctionDeclaration, Type } from "@google/genai";
-import { cookies } from "next/headers";
-import { ResearchArticle, searchResearchArticles } from "./openalex";
+import { GoogleGenAI, FunctionDeclaration, Type } from "@google/genai";
+import { searchResources, ResourceResults } from "./resources";
 
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
 
@@ -12,25 +11,10 @@ type QuizContext = {
   mood?: string[];
 };
 
-// Store chat instances per session
-const chatSessions = new Map<string, Chat>();
-
-async function getSessionId() {
-  const cookieStore = await cookies();
-  let sessionId = cookieStore.get("chat_session_id")?.value;
-
-  if (!sessionId) {
-    sessionId = crypto.randomUUID();
-    cookieStore.set("chat_session_id", sessionId, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "lax",
-      maxAge: 60 * 60 * 24, // 24 hours
-    });
-  }
-
-  return sessionId;
-}
+type ChatMessage = {
+  role: "user" | "model";
+  text: string;
+};
 
 function buildSystemInstruction(quizContext?: QuizContext): string {
   let systemInstruction = `You are an AI chat bot named Brain Buddy. Your goal is to motivate and uplift the user as well as dive deeper into their condition and current mood and feelings.`;
@@ -50,74 +34,46 @@ function buildSystemInstruction(quizContext?: QuizContext): string {
     systemInstruction += `\n\nTailor your responses to be empathetic and relevant to their specific situation.`;
   }
 
-  systemInstruction += `\n\nReturn your answer in plain-text with no markdown.`;
+  systemInstruction += `\n\nYou have access to mental health resources through the searchResources function. Use it when the user asks for research, studies, or information about mental health topics. This function returns academic research articles.`;
+  systemInstruction += `\n\nReturn a brief answer in markdown.`;
 
   return systemInstruction;
 }
 
-// Define the OpenAlex search function for Gemini
-const searchResearchArticlesDeclaration: FunctionDeclaration = {
-  name: "searchResearchArticles",
+// Unified search function declaration
+const searchResourcesDeclaration: FunctionDeclaration = {
+  name: "searchResources",
   description:
-    "Search for academic research papers, studies, and scientific articles related to mental health, psychology, and wellbeing topics. Use this when the user asks for research, studies, papers, or scientific evidence.",
+    "Search for mental health resources including academic research papers and scientific evidence. Use this when the user asks for research, studies, papers, or information about mental health topics.",
   parameters: {
     type: Type.OBJECT,
     properties: {
       query: {
         type: Type.STRING,
         description:
-          "The search query for research papers. Include relevant keywords like the mental health topic, condition, or intervention being researched.",
+          "The search query for mental health resources. Include relevant keywords like the mental health topic, condition, or intervention. Search using a keyword style rather than a google style search.",
       },
       limit: {
         type: Type.NUMBER,
-        description: "Number of results to return (default: 5, max: 10)",
+        description:
+          "Number of results per source to return (default: 5, max: 10)",
       },
     },
     required: ["query"],
   },
 };
 
-async function getOrCreateChat(sessionId: string): Promise<Chat> {
-  if (!chatSessions.has(sessionId)) {
-    const chat = await ai.chats.create({
-      model: "gemini-2.5-flash-lite",
-      history: [
-        {
-          role: "model",
-          parts: [
-            {
-              text: "Hi there! I'm Brain Buddy. Here to help you uplift and motivate yourself while providing research resources on what you're dealing with.",
-            },
-          ],
-        },
-      ],
-      config: {
-        systemInstruction: buildSystemInstruction(),
-        tools: [
-          {
-            functionDeclarations: [searchResearchArticlesDeclaration],
-          },
-        ],
-      },
-    });
+type ChatResponse = {
+  text: string;
+  resources?: ResourceResults;
+};
 
-    chatSessions.set(sessionId, chat);
-
-    // Clean up old sessions after 1 hour
-    setTimeout(() => {
-      chatSessions.delete(sessionId);
-    }, 60 * 60 * 1000);
-  }
-
-  return chatSessions.get(sessionId)!;
-}
-
-export async function initializeChatWithContext(
-  quizContext: QuizContext
-): Promise<void> {
-  const sessionId = await getSessionId();
-
-  // Always recreate chat with new context
+export async function sendChatMessage(
+  message: string,
+  previousMessages: ChatMessage[],
+  quizContext?: QuizContext
+): Promise<ChatResponse> {
+  // Create a fresh chat with full history each time
   const chat = await ai.chats.create({
     model: "gemini-2.5-flash-lite",
     history: [
@@ -125,37 +81,31 @@ export async function initializeChatWithContext(
         role: "model",
         parts: [
           {
-            text: "Hi there! I'm Brain Buddy. Here to help you uplift and motivate yourself while providing research resources on what you're dealing with.",
+            text: quizContext
+              ? `Hi there! I'm Brain Buddy. Here to help you uplift and motivate yourself while providing resources on what you're dealing with.\nYou said that you're feeling ${
+                  quizContext.issue
+                }.\nYour current mood includes ${quizContext.mood?.join(
+                  ", "
+                )}. You described your feelings: ${quizContext.feelings}`
+              : "Hi there! I'm Brain Buddy. Here to help you uplift and motivate yourself while providing research resources on what you're dealing with.",
           },
         ],
       },
+      // Add previous messages from history
+      ...previousMessages.map((msg) => ({
+        role: msg.role,
+        parts: [{ text: msg.text }],
+      })),
     ],
     config: {
       systemInstruction: buildSystemInstruction(quizContext),
       tools: [
         {
-          functionDeclarations: [searchResearchArticlesDeclaration],
+          functionDeclarations: [searchResourcesDeclaration],
         },
       ],
     },
   });
-
-  chatSessions.set(sessionId, chat);
-
-  // Clean up old sessions after 1 hour
-  setTimeout(() => {
-    chatSessions.delete(sessionId);
-  }, 60 * 60 * 1000);
-}
-
-type ChatResponse = {
-  text: string;
-  searchResults?: ResearchArticle[];
-};
-
-export async function sendChatMessage(message: string): Promise<ChatResponse> {
-  const sessionId = await getSessionId();
-  const chat = await getOrCreateChat(sessionId);
 
   const response = await chat.sendMessage({
     message: message,
@@ -175,20 +125,23 @@ export async function sendChatMessage(message: string): Promise<ChatResponse> {
       functionCall.args
     );
 
-    if (functionCall.name === "searchResearchArticles" && functionCall.args) {
+    if (functionCall.name === "searchResources" && functionCall.args) {
       const query = functionCall.args.query as string;
       const limit = (functionCall.args.limit as number) || 5;
 
-      console.log("Calling searchOpenAlex with query:", query);
+      console.log("Calling searchResources with query:", query);
 
-      // Call the actual function
-      const searchResults = await searchResearchArticles(query, limit);
+      // Call the unified search function
+      const resources = await searchResources(query, limit);
 
-      console.log("Search results length:", searchResults.length);
+      console.log(
+        "Resources found - Articles:",
+        resources.researchArticles.length
+      );
 
       return {
-        text: "Here are some relevant research papers I found:",
-        searchResults: searchResults,
+        text: "Here are the resources I found:",
+        resources: resources,
       };
     }
   }
@@ -197,9 +150,4 @@ export async function sendChatMessage(message: string): Promise<ChatResponse> {
   return {
     text: response.text || "Sorry, I couldn't generate a response.",
   };
-}
-
-export async function resetChat(): Promise<void> {
-  const sessionId = await getSessionId();
-  chatSessions.delete(sessionId);
 }

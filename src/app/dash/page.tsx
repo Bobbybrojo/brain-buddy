@@ -7,9 +7,9 @@ import useChatStore from "@/stores/chatStore";
 import { useQuizStore } from "@/providers/quizStoreProvider";
 
 // Icons
-import { RiChatSmileAiFill as ChatIcon } from "react-icons/ri";
+import { LuBrain } from "react-icons/lu";
 import { FaBookBookmark as BookIcon } from "react-icons/fa6";
-import { initializeChatWithContext, sendChatMessage } from "@/lib/gemini";
+import { sendChatMessage } from "@/lib/gemini";
 
 export default function Dash() {
   const [chatInput, setChatInput] = useState<string>("");
@@ -17,36 +17,52 @@ export default function Dash() {
   const quizAnswers = useQuizStore((state) => state);
 
   const history = useChatStore((state) => state.history);
-  const research = useChatStore((state) => state.research);
+  const resources = useChatStore((state) => state.resources);
+  const initializeWithContext = useChatStore(
+    (state) => state.initializeWithContext
+  );
   const addUserMessage = useChatStore((state) => state.addUserMessage);
   const addModelMessage = useChatStore((state) => state.addModelMessage);
-  const addResearch = useChatStore((state) => state.addResearch);
+  const addResources = useChatStore((state) => state.addResources);
 
-  // Initialize chat with quiz context on mount
   useEffect(() => {
-    const initChat = async () => {
-      await initializeChatWithContext({
-        issue: quizAnswers.issue,
-        feelings: quizAnswers.feelings,
-        mood: Array.from(quizAnswers.mood),
-      });
-    };
-    initChat();
-  }, [quizAnswers]); // Reinitialize if quiz data changes
+    initializeWithContext({
+      issue: quizAnswers.issue,
+      feelings: quizAnswers.feelings,
+      mood: Array.from(quizAnswers.mood),
+    });
+  }, [quizAnswers, initializeWithContext]);
 
   const chatMutation = useMutation({
     mutationFn: async (msg: string) => {
       // Add user message immediately
       addUserMessage(msg);
 
+      // Convert history
+      const previousMessages = history.map((chat) => ({
+        role: chat.role,
+        text: chat.parts[0].text,
+      }));
+
+      // Prepare quiz context
+      const quizContext = {
+        issue: quizAnswers.issue,
+        feelings: quizAnswers.feelings,
+        mood: Array.from(quizAnswers.mood),
+      };
+
       // Call server action
-      const response = await sendChatMessage(msg);
+      const response = await sendChatMessage(
+        msg,
+        previousMessages,
+        quizContext
+      );
 
       // Add model response
       addModelMessage(response.text);
 
-      if (response.searchResults) {
-        addResearch(response.searchResults);
+      if (response.resources) {
+        addResources(response.resources);
       }
 
       return response;
@@ -111,9 +127,9 @@ export default function Dash() {
         </div>
 
         <div className="w-full border-[1px] border-neutral-700 mt-2 mb-2" />
-        <div className="flex justify-start items-end">
-          <ChatIcon className="me-2" size={32} />
-          <h2 className="text-4xl font-extrabold">Chat Bot</h2>
+        <div className="flex justify-start items-center">
+          <LuBrain className="me-2" size={32} />
+          <h2 className="text-4xl font-extrabold">Brain Buddy</h2>
         </div>
       </div>
       <div className="flex flex-col bg-neutral-400/25 backdrop-blur-xl sm:w-1/3 w-[220px] h-full p-4 rounded-2xl">
@@ -123,7 +139,7 @@ export default function Dash() {
         </div>
         <div className="w-full border-[1px] border-neutral-700 mt-2 mb-2" />
         <div className="flex flex-col gap-4 overflow-y-scroll [scrollbar-width:none]">
-          {research.map((article, idx) => (
+          {resources?.researchArticles.map((article, idx) => (
             <div
               className="flex flex-col bg-gray-200/25 backdrop-blur-xl rounded-xl p-2"
               key={idx}

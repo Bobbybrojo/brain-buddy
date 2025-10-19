@@ -1,19 +1,12 @@
 import { create } from "zustand";
 import { v4 as uuidv4 } from "uuid";
-import { ResearchArticle } from "@/lib/openalex";
+import { ResourceResults } from "@/lib/resources";
 
 type TextPart = {
   text: string;
 };
 
-type InlineDataPart = {
-  inlineData: {
-    mimeType: string;
-    data: string;
-  };
-};
-
-type ChatParts = [TextPart, ...InlineDataPart[]];
+type ChatParts = [TextPart];
 
 export type ChatMsg = {
   role: "model" | "user";
@@ -21,29 +14,47 @@ export type ChatMsg = {
   id: string;
 };
 
-type chatHistory = ChatMsg[];
+type QuizContext = {
+  issue?: string;
+  feelings?: string;
+  mood?: string[];
+};
 
 type ChatStore = {
-  history: chatHistory;
-  research: ResearchArticle[];
+  history: ChatMsg[];
+  resources: ResourceResults | null; // Store the latest resources
+  initializeWithContext: (quizContext: QuizContext) => void;
   addUserMessage: (msg: string) => void;
   addModelMessage: (msg: string) => void;
-  addResearch: (newResearch: ResearchArticle[]) => void;
+  addResources: (resources: ResourceResults) => void;
+  setResources: (resources: ResourceResults) => void;
+  clearResources: () => void;
 };
 
 const useChatStore = create<ChatStore>((set) => ({
-  history: [
-    {
-      role: "model",
-      parts: [
+  history: [],
+  resources: null,
+
+  initializeWithContext: (quizContext: QuizContext) => {
+    const greetingText = quizContext.issue
+      ? `Hi there! I'm Brain Buddy. Here to help you uplift and motivate yourself while providing resources on what you're dealing with.\nYou said that you're feeling ${
+          quizContext.issue
+        }.\nYour current mood includes ${quizContext.mood?.join(
+          ", "
+        )}. You described your feelings: ${quizContext.feelings}`
+      : "Hi there! I'm Brain Buddy. Here to help you uplift and motivate yourself while providing research resources on what you're dealing with.";
+
+    set({
+      history: [
         {
-          text: "Hi there! I'm Brain Buddy. Here to help you uplift and motivate yourself while providing research resources on what you're dealing with.",
+          role: "model",
+          parts: [{ text: greetingText }],
+          id: uuidv4(),
         },
       ],
-      id: uuidv4(),
-    },
-  ],
-  research: [],
+    });
+  },
+
   addUserMessage: (msg: string) => {
     set((state) => ({
       history: [
@@ -61,11 +72,25 @@ const useChatStore = create<ChatStore>((set) => ({
       ],
     }));
   },
-  addResearch: (newResearch: ResearchArticle[]) => {
+
+  addResources: (newResources: ResourceResults) => {
     set((state) => ({
       ...state,
-      research: [...state.research, ...newResearch],
+      resources: {
+        researchArticles: [
+          ...newResources.researchArticles,
+          ...(state.resources?.researchArticles || []),
+        ],
+      },
     }));
+  },
+
+  setResources: (resources: ResourceResults) => {
+    set({ resources });
+  },
+
+  clearResources: () => {
+    set({ resources: null });
   },
 }));
 

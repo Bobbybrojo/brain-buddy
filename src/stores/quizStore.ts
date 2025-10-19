@@ -41,7 +41,7 @@ export type QuizStore = QuizState & QuizActions;
 
 export const defaultInitState: QuizState = {
   issue: "Anxiety",
-  feelings: "[Not Answered]",
+  feelings: "",
   mood: new Set<MoodType>(),
 };
 

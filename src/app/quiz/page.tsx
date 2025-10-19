@@ -1,6 +1,5 @@
 "use client";
 
-import { useState } from "react";
 import { motion } from "motion/react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -11,7 +10,7 @@ import { useQuizStore } from "@/providers/quizStoreProvider";
 const NextLink = motion.create(Link);
 
 export default function Quiz() {
-  const [feelingsInput, setFeelingsInput] = useState("");
+  const feelings = useQuizStore((state) => state.feelings);
   const setFeelings = useQuizStore((state) => state.setFeelings);
   const router = useRouter();
 
@@ -59,19 +58,16 @@ export default function Quiz() {
               id="feelings"
               maxLength={55}
               placeholder="Briefly describe your feelings"
-              value={feelingsInput}
-              onChange={(e) => setFeelingsInput(e.target.value)}
-              onSubmit={() => {
-                setFeelings(feelingsInput);
-                router.replace("/dash");
-              }}
+              value={feelings}
+              onChange={(e) => setFeelings(e.target.value)}
+              onSubmit={() => router.replace("/dash")}
             />
             <NextLink
               className="bg-neutral-400/25 backdrop-blur-xl mb-4 pt-4 pb-4 ps-6 pe-6 rounded-2xl w-fit"
               href="/dash"
               initial={{}}
               whileHover={{ scale: 1.05 }}
-              onSubmit={() => setFeelings(feelingsInput)}
+              onSubmit={() => {}}
             >
               Submit
             </NextLink>

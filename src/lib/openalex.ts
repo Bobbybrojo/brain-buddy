@@ -64,9 +64,10 @@ export async function searchResearchArticles(
     const perPage = Math.min(limit, 100);
     const params = new URLSearchParams({
       search: searchTerms,
+      filter: "publication_year:>2004", // Only articles from 2005 onwards
       per_page: perPage.toString(),
       page: page.toString(),
-      sort: "cited_by_count:desc",
+      sort: "relevance_score:desc", // Sort by relevance to search query
     });
 
     const response = await fetch(

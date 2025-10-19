@@ -2,6 +2,8 @@
 
 ### This project helps to uplift those facing general mental health issues such as anxiety, depression, burnout, and more by providing a chat interface with AI regarding the indivduals issues as well as providing resouces on those issues.
 
+[Project Link](https://brain-buddy-beta.vercel.app/)
+
 This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
 
 ## Getting Started

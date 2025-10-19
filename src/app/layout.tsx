@@ -1,20 +1,10 @@
 import type { Metadata } from "next";
 import Image from "next/image";
 
-import { QuizStoreProvider } from "@/providers/quizStoreProvider";
+import { Providers } from "@/providers/providers";
 
-import { Geist, Geist_Mono, Urbanist } from "next/font/google";
+import { Urbanist } from "next/font/google";
 import "./globals.css";
-
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
-});
 
 const urbanist = Urbanist({
   variable: "--font-urbanist",
@@ -44,7 +34,7 @@ export default function RootLayout({
               alt=""
             />
             <div className="absolute inset-0 flex flex-col gap-4 items-center justify-center text-white">
-              <QuizStoreProvider>{children}</QuizStoreProvider>
+              <Providers>{children}</Providers>
             </div>
           </main>
           <footer className="flex flex-col items-center justify-center h-full">

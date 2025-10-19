@@ -27,13 +27,14 @@ export type MoodType =
 export type QuizState = {
   issue: IssueType;
   feelings: string;
-  mood: MoodType;
+  mood: Set<MoodType>;
 };
 
 export type QuizActions = {
   setIssue: (issue: IssueType) => void;
   setFeelings: (feelings: string) => void;
-  setMood: (mood: MoodType) => void;
+  addMood: (newMood: MoodType) => void;
+  removeMood: (oldMood: MoodType) => void;
 };
 
 export type QuizStore = QuizState & QuizActions;
@@ -41,7 +42,7 @@ export type QuizStore = QuizState & QuizActions;
 export const defaultInitState: QuizState = {
   issue: "Anxiety",
   feelings: "[Not Answered]",
-  mood: "Happy",
+  mood: new Set<MoodType>(),
 };
 
 export const createQuizStore = (initState: QuizState = defaultInitState) => {
@@ -49,6 +50,17 @@ export const createQuizStore = (initState: QuizState = defaultInitState) => {
     ...initState,
     setIssue: (issue: IssueType) => set((state) => ({ ...state, issue })),
     setFeelings: (feelings: string) => set((state) => ({ ...state, feelings })),
-    setMood: (mood: MoodType) => set((state) => ({ ...state, mood })),
+    addMood: (newMood: MoodType) =>
+      set((state) => {
+        const newMoodSet = new Set(state.mood);
+        newMoodSet.add(newMood);
+        return { ...state, mood: newMoodSet };
+      }),
+    removeMood: (oldMood: MoodType) =>
+      set((state) => {
+        const newMoodSet = new Set(state.mood);
+        newMoodSet.delete(oldMood);
+        return { ...state, mood: newMoodSet };
+      }),
   }));
 };

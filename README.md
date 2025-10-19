@@ -1,6 +1,6 @@
 # Brain Buddy
 
-### This project helps to uplift those facing general mental health issues such as anxiety, depression, burnout, and more by providing a chat interface with AI regarding the indivduals issues as well as providing resouces on those issues.
+### This project helps to uplift those facing general mental health issues such as anxiety, depression, burnout, and more by providing a chat interface with AI regarding the individual issues as well as providing resouces on those issues.
 
 [Project Link](https://brain-buddy-beta.vercel.app/)
 
